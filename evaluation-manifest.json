@@ -1,0 +1,65 @@
+{
+  "team_id": "LSH26-T029",
+  "problem_id": "P02",
+  "repository_name": "lsh26-t029-p02",
+  "live_url": "TODO: fill in after enabling GitHub Pages (Settings > Pages > main / root), e.g. https://<username>.github.io/lsh26-t029-p02/",
+  "demo_video_url_optional": "",
+  "event_start_code": "LSH26-8490-C900",
+  "repository_created_before_release": false,
+  "pre_event_materials": [],
+  "sample_data": {
+    "loads_published_fixture": true,
+    "method": "Embedded directly in source as a hardcoded JS array (SEED_MEDS, in index.html), reshaped from the organisers' published P02 fixture, case PUB-12 (its 'today' matches this build's date). A plain-JSON copy of the same 44 items is kept at data/stock.json for inspection.",
+    "reset_instructions": "The sample dataset itself is static and never mutated on disk, so reloading index.html always starts from the same 44 items. Only user actions during a session (Mark returned, Quick add) are persisted, and only in that browser's localStorage under the key 'pharmacy-shelf-check-v1'. To restore the original state for judging: open the page in a new private/incognito window, or open DevTools > Application (Storage in Firefox) > Local Storage > the page's origin > delete the 'pharmacy-shelf-check-v1' key, then reload."
+  },
+  "problem_solving_method": "Read the problem statement and the three published rulings (R-27, R-04, R-24) first to fix the exact bucket definitions and value formula before writing code. Took the organisers' own published P02 sample-data fixture and used case PUB-12 (its 'today' field equals this build's actual date), reshaping it into the app's schema instead of inventing numbers. Independently hand-computed bucket counts and BDT totals from that same fixture in a separate Python script to check the app's output matched exactly. Built the whole thing as one dependency-free HTML/CSS/JS file with no framework and no backend, so the four groups recompute live from the real current date rather than being pre-labelled in the data, per the 'must be worked out from today's date' constraint. Chose a static client-side app over a backend+database because the brief is one pharmacist looking at one screen — that meets the requirement with the fewest moving parts, at the cost of the limitations listed below.",
+  "requirements": {
+    "R1": {
+      "status": "complete",
+      "evidence": "index.html: SEED_MEDS array (44 medicines with name/batch/company/quantity/unit_price_bdt/expiry_date), mirrored at data/stock.json. 10 already expired, 6 expiring <=30d, 8 expiring <=90d, 17 safe (several >1 year out)."
+    },
+    "R2": {
+      "status": "complete",
+      "evidence": "index.html: bucketOf() computes Expired/Expiring<=30d/Expiring<=90d/Safe from new Date() on every render (never pre-labelled in data); renderStats() writes the four live counts into #countExpired, #countSoon30, #countMid90, #countSafe, each also usable as a table filter."
+    },
+    "R3": {
+      "status": "complete",
+      "evidence": "index.html: markReturned() sets returned:true + returnedDate and re-renders; renderTable() excludes returned items from the active list, renderReturned() lists them separately under 'Returned to distributor' with an Undo action. renderStats()/getFiltered() filter on !m.returned before any bucketing or summing (ruling R-24)."
+    },
+    "R4": {
+      "status": "complete",
+      "evidence": "index.html: renderStats() computes heroExpiredValue and heroSoonValue as sum(quantity * unit_price_bdt) over the Expired group and the Expiring<=30d group respectively (ruling R-27), with 'expiring soon' scoped to 0-30 days inclusive and kept separate from expired (ruling R-04)."
+    }
+  },
+  "team_members": [
+    {
+      "registered_name": "<MEMBER NAME>",
+      "github_username": "<GITHUB USERNAME>",
+      "major_contribution": "TODO: fill in — see note to team leader",
+      "evidence_paths_or_commits": [
+        "index.html"
+      ]
+    }
+  ],
+  "major_design_decisions": [
+    "Mutually-exclusive buckets (Expired / <=30d / <=90d / Safe) computed live from the real current date, never pre-labelled in the data, so the four tile counts always sum to the active item count and stay correct on any day the page is opened.",
+    "Sample data sourced from the organisers' own published P02 fixture (case PUB-12) rather than invented numbers, reshaped into the app's field names.",
+    "No backend: 'Mark returned' and 'Quick add' state is kept in the browser's localStorage, matching the brief's single-pharmacist single-screen scope.",
+    "Status and accent colors were run through a colorblind-simulation + WCAG-contrast validator (OKLCH lightness band, chroma floor, CVD Delta-E separation) for both light and dark mode rather than picked by eye."
+  ],
+  "known_limitations": [
+    "Single-browser state: returns and quick-adds live in that browser's localStorage, not a shared database — two devices won't see each other's changes.",
+    "No authentication/authorization — anyone with the URL can mark items returned or add stock.",
+    "Only a single 'returned on' date is kept per item; no broader edit/audit history beyond the one-click Undo in the Returned list.",
+    "The 6-month chart is forward-looking only (skips already-expired stock by design) and reflects state at render time."
+  ],
+  "ai_tools_used": [
+    {
+      "tool": "Claude (Anthropic), Cowork agent",
+      "used_for": "Full build: reading the spec and rulings, selecting and reshaping the official sample fixture, writing all dashboard logic (bucketing, value-at-risk, returns, search/filter, chart, quick-add) and UI/CSS, and drafting this documentation.",
+      "how_output_was_verified": "Bucket counts and BDT totals were independently recomputed from the same source fixture in a standalone Python script and cross-checked against the running page's output; the page was exercised headlessly with Playwright to confirm search, bucket filtering, mark-returned, and quick-add all behave correctly and update totals live; the status/accent color palette was checked with a colorblind-simulation and WCAG-contrast validator script rather than eyeballed."
+    }
+  ],
+  "licenses_file": "LICENSES.md",
+  "declaration": "The information above is complete and truthful to the best of the team's knowledge."
+}
