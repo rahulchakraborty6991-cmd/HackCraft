@@ -1,0 +1,836 @@
+<title>Shelf Expiry Check</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#F6F7F4;
+    --surface:#FFFFFF;
+    --surface-2:#EEF1EC;
+    --border:#DDE3DC;
+    --ink:#182420;
+    --ink-muted:#57635C;
+    --ink-faint:#8B968F;
+    --accent:#1F5F73;
+    --accent-ink:#FFFFFF;
+    --accent-wash:#E7F1F3;
+    --critical:#C4432C;
+    --critical-wash:#FBEAE5;
+    --serious:#974E1B;
+    --serious-wash:#F5EAE0;
+    --caution:#8C6A0A;
+    --caution-wash:#F6F0DA;
+    --good:#2A7355;
+    --good-wash:#E4F1EA;
+    --shadow:0 1px 2px rgba(24,36,32,.06), 0 8px 20px rgba(24,36,32,.05);
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1A1A19;
+      --surface:#20282B;
+      --surface-2:#262F32;
+      --border:#333E42;
+      --ink:#ECEFEC;
+      --ink-muted:#97A29C;
+      --ink-faint:#6C7975;
+      --accent:#6FC3D6;
+      --accent-ink:#0B2226;
+      --accent-wash:#14343B;
+      --critical:#EA5C70;
+      --critical-wash:#3A1F22;
+      --serious:#D08A4B;
+      --serious-wash:#332318;
+      --caution:#C7B437;
+      --caution-wash:#302D10;
+      --good:#5FBF93;
+      --good-wash:#12281F;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#1A1A19;
+    --surface:#20282B;
+    --surface-2:#262F32;
+    --border:#333E42;
+    --ink:#ECEFEC;
+    --ink-muted:#97A29C;
+    --ink-faint:#6C7975;
+    --accent:#6FC3D6;
+    --accent-ink:#0B2226;
+    --accent-wash:#14343B;
+    --critical:#EA5C70;
+    --critical-wash:#3A1F22;
+    --serious:#D08A4B;
+    --serious-wash:#332318;
+    --caution:#C7B437;
+    --caution-wash:#302D10;
+    --good:#5FBF93;
+    --good-wash:#12281F;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',-apple-system,'Segoe UI',Roboto,sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1240px;margin:0 auto;padding:28px 24px 80px;}
+  .num{font-variant-numeric:tabular-nums;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;}
+
+  /* header */
+  header.top{
+    display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
+    padding-bottom:20px;margin-bottom:22px;border-bottom:1px solid var(--border);
+    flex-wrap:wrap;
+  }
+  .brand h1{
+    font-family:'Newsreader',Georgia,serif;
+    font-weight:600;font-size:26px;margin:0 0 2px;letter-spacing:.2px;
+    text-wrap:balance;
+  }
+  .brand p{margin:0;color:var(--ink-muted);font-size:13px;}
+  .brand .loc{color:var(--ink-faint);}
+  .top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .clock{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-muted);
+    background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+    padding:7px 12px;
+  }
+  button.btn{
+    font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+    border-radius:8px;padding:9px 15px;border:1px solid transparent;
+    transition:transform .08s ease, filter .12s ease;
+  }
+  button.btn:active{transform:translateY(1px);}
+  button.btn:focus-visible, input:focus-visible, select:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;
+  }
+  .btn-primary{background:var(--accent);color:var(--accent-ink);}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--border);}
+  .btn-ghost:hover{background:var(--surface-2);}
+  .btn-small{padding:5px 10px;font-size:12px;border-radius:6px;}
+  .btn-link{background:none;border:none;color:var(--accent);font-weight:600;font-size:12px;cursor:pointer;padding:2px;}
+
+  /* hero: value at risk */
+  .hero{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  @media (max-width:720px){.hero{grid-template-columns:1fr;}}
+  .hero-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px 20px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden;
+  }
+  .hero-card::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  }
+  .hero-card.critical::before{background:var(--critical);}
+  .hero-card.serious::before{background:var(--serious);}
+  .hero-eyebrow{
+    font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-muted);
+  }
+  .hero-value{
+    font-family:'Newsreader',Georgia,serif;font-weight:600;font-size:34px;
+    letter-spacing:.2px;
+  }
+  .hero-value.critical{color:var(--critical);}
+  .hero-value.serious{color:var(--serious);}
+  .hero-sub{font-size:12.5px;color:var(--ink-muted);}
+
+  /* stat tiles */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+  @media (max-width:860px){.tiles{grid-template-columns:repeat(2,1fr);}}
+  .tile{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;text-align:left;
+    font-family:inherit;position:relative;padding-left:18px;
+    transition:transform .08s ease, border-color .12s ease;
+  }
+  .tile::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:2px;}
+  .tile:hover{transform:translateY(-1px);}
+  .tile.active{border-color:var(--accent);}
+  .tile.expired::before{background:var(--critical);}
+  .tile.soon30::before{background:var(--serious);}
+  .tile.mid90::before{background:var(--caution);}
+  .tile.safe::before{background:var(--good);}
+  .tile-label{font-size:11.5px;color:var(--ink-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+  .tile-count{font-family:'Newsreader',Georgia,serif;font-size:28px;font-weight:600;margin-top:3px;}
+
+  /* section headers */
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;margin:30px 0 12px;flex-wrap:wrap;gap:8px;}
+  .section-head h2{font-family:'Newsreader',Georgia,serif;font-weight:600;font-size:18px;margin:0;}
+  .section-head .hint{font-size:12px;color:var(--ink-faint);}
+
+  /* chart */
+  .chart-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px 20px 10px;box-shadow:var(--shadow);
+  }
+  .chart-svg-wrap{position:relative;}
+  .chart-tooltip{
+    position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);
+    font-size:11.5px;padding:6px 9px;border-radius:6px;white-space:nowrap;
+    transform:translate(-50%,-115%);opacity:0;transition:opacity .1s ease;
+    font-family:'IBM Plex Mono',monospace;z-index:5;
+  }
+  .chart-tooltip.show{opacity:1;}
+  .chart-tooltip b{font-family:'IBM Plex Sans',sans-serif;}
+
+  /* controls */
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .search-box{
+    display:flex;align-items:center;gap:6px;background:var(--surface);
+    border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:240px;flex:1;
+  }
+  .search-box input{
+    border:none;outline:none;background:transparent;font-family:inherit;
+    font-size:13px;color:var(--ink);width:100%;
+  }
+  .search-box svg{flex:none;color:var(--ink-faint);}
+  .chip-row{display:flex;gap:6px;flex-wrap:wrap;}
+  .chip{
+    font-family:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:99px;
+    border:1px solid var(--border);background:var(--surface);color:var(--ink-muted);cursor:pointer;
+  }
+  .chip.active{background:var(--accent-wash);border-color:var(--accent);color:var(--accent);}
+  select.sortsel{
+    font-family:inherit;font-size:12.5px;background:var(--surface);color:var(--ink);
+    border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;
+  }
+
+  /* table */
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow);}
+  table{border-collapse:collapse;width:100%;min-width:820px;}
+  thead th{
+    text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--ink-muted);padding:11px 14px;border-bottom:1px solid var(--border);
+    background:var(--surface-2);white-space:nowrap;position:sticky;top:0;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--surface-2);}
+  .med-name{font-weight:600;}
+  .med-form{color:var(--ink-faint);font-size:12px;}
+  .company{color:var(--ink-muted);}
+  td.num-cell{text-align:right;}
+  .pill{
+    display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
+    padding:4px 10px;border-radius:99px;white-space:nowrap;
+  }
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;}
+  .pill.expired{background:var(--critical-wash);color:var(--critical);}
+  .pill.expired::before{background:var(--critical);}
+  .pill.soon30{background:var(--serious-wash);color:var(--serious);}
+  .pill.soon30::before{background:var(--serious);}
+  .pill.mid90{background:var(--caution-wash);color:var(--caution);}
+  .pill.mid90::before{background:var(--caution);}
+  .pill.safe{background:var(--good-wash);color:var(--good);}
+  .pill.safe::before{background:var(--good);}
+  .empty-row td{text-align:center;color:var(--ink-faint);padding:34px;font-size:13px;}
+
+  /* returned section */
+  details.returned-wrap{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:var(--shadow);
+  }
+  details.returned-wrap summary{
+    cursor:pointer;padding:14px 18px;font-weight:600;font-size:13.5px;list-style:none;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  details.returned-wrap summary::-webkit-details-marker{display:none;}
+  .chevron{transition:transform .15s ease;color:var(--ink-faint);}
+  details[open] .chevron{transform:rotate(90deg);}
+  .returned-body{padding:0 18px 16px;}
+
+  /* modal */
+  .modal-scrim{
+    position:fixed;inset:0;background:rgba(10,14,12,.5);display:none;
+    align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .modal-scrim.open{display:flex;}
+  .modal{
+    background:var(--surface);border-radius:14px;border:1px solid var(--border);
+    width:100%;max-width:480px;padding:22px 24px 24px;box-shadow:0 20px 60px rgba(0,0,0,.3);
+    max-height:90vh;overflow-y:auto;
+  }
+  .modal h3{font-family:'Newsreader',Georgia,serif;font-size:19px;margin:0 0 4px;}
+  .modal p.hint{margin:0 0 16px;color:var(--ink-muted);font-size:12.5px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-muted);margin-bottom:5px;}
+  .field input{
+    width:100%;font-family:inherit;font-size:13.5px;padding:9px 11px;
+    border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--ink);
+  }
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .preset-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
+  .preset-btn{
+    font-family:inherit;font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:6px;
+    border:1px solid var(--border);background:var(--surface-2);color:var(--ink-muted);cursor:pointer;
+  }
+  .preset-btn.active{background:var(--accent-wash);border-color:var(--accent);color:var(--accent);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+
+  footer.foot{margin-top:40px;color:var(--ink-faint);font-size:11.5px;text-align:center;}
+  .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Shefali Pharmacy <span class="loc">— Khulna</span></h1>
+      <p>Shelf expiry check — what's expiring, when, and how much money is at risk.</p>
+    </div>
+    <div class="top-actions">
+      <div class="clock" id="clockToday"></div>
+      <button class="btn btn-primary" id="openAddBtn">+ Quick add medicine</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-card critical">
+      <span class="hero-eyebrow">Already expired — total loss</span>
+      <span class="hero-value critical num" id="heroExpiredValue">৳0</span>
+      <span class="hero-sub" id="heroExpiredSub">0 items can no longer be returned</span>
+    </div>
+    <div class="hero-card serious">
+      <span class="hero-eyebrow">Expiring within 30 days — value at risk</span>
+      <span class="hero-value serious num" id="heroSoonValue">৳0</span>
+      <span class="hero-sub" id="heroSoonSub">0 items still eligible for return</span>
+    </div>
+  </section>
+
+  <section class="tiles" id="tiles">
+    <button class="tile expired" data-bucket="expired">
+      <div class="tile-label">Expired</div>
+      <div class="tile-count num" id="countExpired">0</div>
+    </button>
+    <button class="tile soon30" data-bucket="soon30">
+      <div class="tile-label">Expiring ≤ 30 days</div>
+      <div class="tile-count num" id="countSoon30">0</div>
+    </button>
+    <button class="tile mid90" data-bucket="mid90">
+      <div class="tile-label">Expiring ≤ 90 days</div>
+      <div class="tile-count num" id="countMid90">0</div>
+    </button>
+    <button class="tile safe" data-bucket="safe">
+      <div class="tile-label">Safe (&gt; 90 days)</div>
+      <div class="tile-count num" id="countSafe">0</div>
+    </button>
+  </section>
+
+  <div class="section-head">
+    <h2>Value at risk, next 6 months</h2>
+    <span class="hint">Purchase value of active stock, grouped by the month it expires</span>
+  </div>
+  <div class="chart-card">
+    <div class="chart-svg-wrap" id="chartWrap"></div>
+  </div>
+
+  <div class="section-head">
+    <h2>Active stock</h2>
+    <span class="hint" id="tableCountHint"></span>
+  </div>
+  <div class="controls">
+    <div class="search-box">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Search by medicine name or company…" />
+    </div>
+    <div class="chip-row" id="chipRow">
+      <button class="chip active" data-bucket="all">All</button>
+      <button class="chip" data-bucket="expired">Expired</button>
+      <button class="chip" data-bucket="soon30">≤ 30 days</button>
+      <button class="chip" data-bucket="mid90">≤ 90 days</button>
+      <button class="chip" data-bucket="safe">Safe</button>
+    </div>
+    <select class="sortsel" id="sortSelect">
+      <option value="expiry-asc">Sort: Expiry — soonest first</option>
+      <option value="expiry-desc">Sort: Expiry — latest first</option>
+      <option value="value-desc">Sort: Value at risk — highest first</option>
+      <option value="name-asc">Sort: Name A–Z</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Medicine</th>
+          <th>Company</th>
+          <th>Batch</th>
+          <th class="num-cell">Qty</th>
+          <th class="num-cell">Unit price</th>
+          <th>Expiry date</th>
+          <th>Days left</th>
+          <th class="num-cell">Value</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section-head">
+    <h2>Returned to distributor</h2>
+    <span class="hint">Excluded from active counts and value totals</span>
+  </div>
+  <details class="returned-wrap" id="returnedWrap">
+    <summary>
+      <span id="returnedSummaryText">0 items returned</span>
+      <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 6 15 12 9 18"/></svg>
+    </summary>
+    <div class="returned-body">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Medicine</th><th>Company</th><th>Batch</th><th class="num-cell">Qty</th><th class="num-cell">Unit price</th><th>Expiry date</th><th>Returned on</th><th></th></tr>
+          </thead>
+          <tbody id="returnedBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <footer class="foot">Groups are computed live from today's date · Expiring soon = 0–30 days left, inclusive · Value at risk = quantity × unit purchase price</footer>
+</div>
+
+<!-- Quick add modal -->
+<div class="modal-scrim" id="modalScrim">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h3 id="modalTitle">Quick add medicine</h3>
+    <p class="hint">Pick a shelf-life preset to fill the expiry date, or set it by hand.</p>
+    <form id="addForm">
+      <div class="field">
+        <label for="f-name">Medicine name</label>
+        <input type="text" id="f-name" required placeholder="e.g. Napa (Paracetamol 500mg)" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="f-company">Company</label>
+          <input type="text" id="f-company" required placeholder="e.g. Square Pharmaceuticals" />
+        </div>
+        <div class="field">
+          <label for="f-batch">Batch</label>
+          <input type="text" id="f-batch" required />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="f-qty">Quantity</label>
+          <input type="number" id="f-qty" min="1" step="1" required placeholder="e.g. 100" />
+        </div>
+        <div class="field">
+          <label for="f-price">Unit price (৳)</label>
+          <input type="number" id="f-price" min="0" step="0.01" required placeholder="e.g. 5.50" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-expiry">Expiry date</label>
+        <input type="date" id="f-expiry" required />
+        <div class="preset-row" id="presetRow">
+          <button type="button" class="preset-btn" data-months="6">6 months</button>
+          <button type="button" class="preset-btn" data-months="12">1 year</button>
+          <button type="button" class="preset-btn active" data-months="18">18 months</button>
+          <button type="button" class="preset-btn" data-months="24">2 years</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cancelAddBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add to shelf</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- sample stock data (45+ medicines) ---------------- */
+  var SEED_MEDS = [{"id":"M001","name":"Napa 500","form":"","company":"Opsonin","batch":"B3184","quantity":201,"unit_price_bdt":1.5,"expiry_date":"2028-08-19","returned":false},{"id":"M002","name":"Napa Extra","form":"","company":"Popular","batch":"C9043","quantity":88,"unit_price_bdt":45.5,"expiry_date":"2026-10-09","returned":false},{"id":"M003","name":"Seclo 20","form":"","company":"ACI","batch":"H2565","quantity":148,"unit_price_bdt":350.0,"expiry_date":"2025-07-26","returned":false},{"id":"M004","name":"Losectil 20","form":"","company":"Healthcare","batch":"D5600","quantity":110,"unit_price_bdt":1.5,"expiry_date":"2026-09-28","returned":true,"returnedDate":"2026-08-27"},{"id":"M005","name":"Maxpro 20","form":"","company":"Aristopharma","batch":"A6040","quantity":96,"unit_price_bdt":25.0,"expiry_date":"2026-09-30","returned":false},{"id":"M006","name":"Ace 500","form":"","company":"Opsonin","batch":"A8857","quantity":55,"unit_price_bdt":3.2,"expiry_date":"2027-05-27","returned":false},{"id":"M007","name":"Fexo 120","form":"","company":"Aristopharma","batch":"F7185","quantity":29,"unit_price_bdt":1.0,"expiry_date":"2026-08-28","returned":false},{"id":"M008","name":"Monas 10","form":"","company":"Beximco","batch":"D5777","quantity":24,"unit_price_bdt":2.5,"expiry_date":"2027-05-27","returned":false},{"id":"M009","name":"Zimax 500","form":"","company":"Renata","batch":"G4411","quantity":99,"unit_price_bdt":3.2,"expiry_date":"2027-05-27","returned":false},{"id":"M010","name":"Ciprocin 500","form":"","company":"Renata","batch":"H6679","quantity":247,"unit_price_bdt":12.0,"expiry_date":"2026-12-08","returned":false},{"id":"M011","name":"Amodis 400","form":"","company":"Aristopharma","batch":"G7811","quantity":77,"unit_price_bdt":18.75,"expiry_date":"2026-09-29","returned":false},{"id":"M012","name":"Flagyl 400","form":"","company":"Opsonin","batch":"D2570","quantity":153,"unit_price_bdt":45.5,"expiry_date":"2027-01-27","returned":false},{"id":"M013","name":"Histacin 4","form":"","company":"ACI","batch":"F2172","quantity":116,"unit_price_bdt":350.0,"expiry_date":"2026-09-02","returned":true,"returnedDate":"2026-08-22"},{"id":"M014","name":"Alatrol 10","form":"","company":"Renata","batch":"D7025","quantity":261,"unit_price_bdt":18.75,"expiry_date":"2026-09-20","returned":false},{"id":"M015","name":"Deslor 5","form":"","company":"Opsonin","batch":"G4881","quantity":262,"unit_price_bdt":5.0,"expiry_date":"2028-08-19","returned":false},{"id":"M016","name":"Neotack 150","form":"","company":"ACI","batch":"B9631","quantity":58,"unit_price_bdt":12.0,"expiry_date":"2026-05-02","returned":false},{"id":"M017","name":"Rolac 10","form":"","company":"Opsonin","batch":"F2838","quantity":91,"unit_price_bdt":60.0,"expiry_date":"2026-11-26","returned":false},{"id":"M018","name":"Tufnil 200","form":"","company":"Beximco","batch":"A1504","quantity":67,"unit_price_bdt":5.0,"expiry_date":"2026-09-20","returned":false},{"id":"M019","name":"Sergel 20","form":"","company":"Square","batch":"A1531","quantity":218,"unit_price_bdt":7.0,"expiry_date":"2028-08-19","returned":false},{"id":"M020","name":"Pantonix 20","form":"","company":"Healthcare","batch":"E5063","quantity":23,"unit_price_bdt":3.2,"expiry_date":"2026-08-29","returned":false},{"id":"M021","name":"Esoral 20","form":"","company":"Beximco","batch":"E6990","quantity":42,"unit_price_bdt":60.0,"expiry_date":"2026-11-13","returned":false},{"id":"M022","name":"Azithrocin 500","form":"","company":"Beximco","batch":"B4089","quantity":273,"unit_price_bdt":7.0,"expiry_date":"2028-02-21","returned":false},{"id":"M023","name":"Cef-3 200","form":"","company":"Square","batch":"F1634","quantity":145,"unit_price_bdt":45.5,"expiry_date":"2027-08-30","returned":false},{"id":"M024","name":"Moxaclav 625","form":"","company":"Incepta","batch":"E6869","quantity":72,"unit_price_bdt":2.5,"expiry_date":"2026-09-20","returned":true,"returnedDate":"2026-08-25"},{"id":"M025","name":"Amoxicillin 500","form":"","company":"Healthcare","batch":"B6069","quantity":289,"unit_price_bdt":60.0,"expiry_date":"2026-10-29","returned":false},{"id":"M026","name":"Bicozin","form":"","company":"Renata","batch":"A9784","quantity":233,"unit_price_bdt":8.5,"expiry_date":"2028-02-21","returned":false},{"id":"M027","name":"Vitamin C 250","form":"","company":"Opsonin","batch":"H5026","quantity":112,"unit_price_bdt":7.0,"expiry_date":"2028-08-19","returned":false},{"id":"M028","name":"Calbo D","form":"","company":"Square","batch":"G7339","quantity":141,"unit_price_bdt":25.0,"expiry_date":"2025-07-26","returned":false},{"id":"M029","name":"Ostocal D","form":"","company":"Popular","batch":"A6856","quantity":293,"unit_price_bdt":3.2,"expiry_date":"2026-05-02","returned":false},{"id":"M030","name":"Frenxit","form":"","company":"Popular","batch":"B9196","quantity":238,"unit_price_bdt":25.0,"expiry_date":"2026-08-30","returned":false},{"id":"M031","name":"Rivotril 0.5","form":"","company":"Square","batch":"F9405","quantity":87,"unit_price_bdt":60.0,"expiry_date":"2026-09-11","returned":false},{"id":"M032","name":"Xinc 20","form":"","company":"Square","batch":"G6692","quantity":146,"unit_price_bdt":7.0,"expiry_date":"2026-11-29","returned":false},{"id":"M033","name":"Omidon 10","form":"","company":"Aristopharma","batch":"A9315","quantity":243,"unit_price_bdt":3.2,"expiry_date":"2026-08-20","returned":false},{"id":"M034","name":"Motigut 10","form":"","company":"Eskayef","batch":"G5759","quantity":156,"unit_price_bdt":8.5,"expiry_date":"2026-11-26","returned":false},{"id":"M035","name":"Filmet 400","form":"","company":"Popular","batch":"G5431","quantity":184,"unit_price_bdt":25.0,"expiry_date":"2026-11-28","returned":false},{"id":"M036","name":"Orsaline N","form":"","company":"Aristopharma","batch":"D9957","quantity":88,"unit_price_bdt":7.0,"expiry_date":"2027-03-18","returned":false},{"id":"M037","name":"Nebanol 500","form":"","company":"Square","batch":"G9886","quantity":215,"unit_price_bdt":3.2,"expiry_date":"2026-11-13","returned":false},{"id":"M038","name":"Ketorol 10","form":"","company":"ACI","batch":"D4298","quantity":12,"unit_price_bdt":12.0,"expiry_date":"2026-08-20","returned":false},{"id":"M039","name":"Dermasol","form":"","company":"Renata","batch":"B8236","quantity":63,"unit_price_bdt":1.0,"expiry_date":"2026-12-08","returned":false},{"id":"M040","name":"Fungidal cream","form":"","company":"Eskayef","batch":"H1834","quantity":62,"unit_price_bdt":350.0,"expiry_date":"2026-09-02","returned":false},{"id":"M041","name":"Napa 500","form":"","company":"ACI","batch":"D6406","quantity":53,"unit_price_bdt":25.0,"expiry_date":"2026-08-28","returned":false},{"id":"M042","name":"Napa Extra","form":"","company":"Renata","batch":"C6394","quantity":113,"unit_price_bdt":12.0,"expiry_date":"2028-02-21","returned":false},{"id":"M043","name":"Seclo 20","form":"","company":"ACI","batch":"E4293","quantity":84,"unit_price_bdt":1.5,"expiry_date":"2026-08-28","returned":false},{"id":"M044","name":"Losectil 20","form":"","company":"Opsonin","batch":"G7215","quantity":33,"unit_price_bdt":2.5,"expiry_date":"2027-05-27","returned":false}];
+
+  var STORE_KEY = 'pharmacy-shelf-check-v1';
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.items)) return parsed.items;
+      }
+    }catch(e){ /* storage unavailable — fall back to seed */ }
+    return SEED_MEDS.map(function(m){ return Object.assign({}, m); });
+  }
+  function saveState(items){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify({items: items})); }
+    catch(e){ /* best-effort only */ }
+  }
+
+  var items = loadState();
+
+  /* ---------------- date + bucket helpers ---------------- */
+  function parseLocalDate(iso){
+    var p = iso.split('-');
+    return new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10));
+  }
+  function startOfToday(){
+    var d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function daysLeft(iso){
+    var expiry = parseLocalDate(iso);
+    var today = startOfToday();
+    return Math.round((expiry - today) / 86400000);
+  }
+  function bucketOf(item){
+    if(item.returned) return 'returned';
+    var dl = daysLeft(item.expiry_date);
+    if(dl < 0) return 'expired';
+    if(dl <= 30) return 'soon30';
+    if(dl <= 90) return 'mid90';
+    return 'safe';
+  }
+  function value(item){ return item.quantity * item.unit_price_bdt; }
+
+  var BDT_FMT = new Intl.NumberFormat('en-US', {maximumFractionDigits:0});
+  function fmtBdt(n){ return '৳' + BDT_FMT.format(Math.round(n)); }
+  var PRICE_FMT = new Intl.NumberFormat('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  function fmtPrice(n){ return '৳' + PRICE_FMT.format(n); }
+  var QTY_FMT = new Intl.NumberFormat('en-US');
+  function fmtQty(n){ return QTY_FMT.format(n); }
+  var DATE_FMT_OPTS = {day:'2-digit', month:'short', year:'numeric'};
+  function fmtDate(iso){ return parseLocalDate(iso).toLocaleDateString('en-GB', DATE_FMT_OPTS); }
+  function daysLeftLabel(dl){
+    if(dl < 0) return 'Expired ' + Math.abs(dl) + (Math.abs(dl)===1?' day ago':' days ago');
+    if(dl === 0) return 'Expires today';
+    return dl + (dl===1 ? ' day left' : ' days left');
+  }
+  var BUCKET_LABEL = {expired:'Expired', soon30:'Expiring ≤ 30d', mid90:'Expiring ≤ 90d', safe:'Safe'};
+
+  /* ---------------- UI state ---------------- */
+  var uiState = { search:'', bucket:'all', sort:'expiry-asc' };
+
+  /* ---------------- render: clock ---------------- */
+  function renderClock(){
+    var el = document.getElementById('clockToday');
+    var d = new Date();
+    el.textContent = 'Today · ' + d.toLocaleDateString('en-GB', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+  }
+
+  /* ---------------- render: hero + tiles ---------------- */
+  function renderStats(){
+    var active = items.filter(function(m){ return !m.returned; });
+    var buckets = {expired:[], soon30:[], mid90:[], safe:[]};
+    active.forEach(function(m){ buckets[bucketOf(m)].push(m); });
+
+    document.getElementById('countExpired').textContent = buckets.expired.length;
+    document.getElementById('countSoon30').textContent = buckets.soon30.length;
+    document.getElementById('countMid90').textContent = buckets.mid90.length;
+    document.getElementById('countSafe').textContent = buckets.safe.length;
+
+    var expiredValue = buckets.expired.reduce(function(s,m){ return s+value(m); }, 0);
+    var soonValue = buckets.soon30.reduce(function(s,m){ return s+value(m); }, 0);
+
+    document.getElementById('heroExpiredValue').textContent = fmtBdt(expiredValue);
+    document.getElementById('heroExpiredSub').textContent =
+      buckets.expired.length + (buckets.expired.length===1?' item can':' items can') + ' no longer be returned';
+    document.getElementById('heroSoonValue').textContent = fmtBdt(soonValue);
+    document.getElementById('heroSoonSub').textContent =
+      buckets.soon30.length + (buckets.soon30.length===1?' item is':' items are') + ' still eligible for return';
+
+    document.querySelectorAll('.tile').forEach(function(t){
+      t.classList.toggle('active', t.dataset.bucket === uiState.bucket);
+    });
+  }
+
+  /* ---------------- render: 6-month chart ---------------- */
+  function renderChart(){
+    var wrap = document.getElementById('chartWrap');
+    var today = startOfToday();
+    var months = [];
+    for(var i=0;i<6;i++){
+      var m = new Date(today.getFullYear(), today.getMonth()+i, 1);
+      months.push({ y:m.getFullYear(), m:m.getMonth(), label:m.toLocaleDateString('en-US',{month:'short'}), total:0, count:0 });
+    }
+    items.filter(function(x){ return !x.returned; }).forEach(function(it){
+      var dl = daysLeft(it.expiry_date);
+      if(dl < 0) return; // already expired — not "at risk" going forward
+      var ed = parseLocalDate(it.expiry_date);
+      var idx = (ed.getFullYear()-today.getFullYear())*12 + (ed.getMonth()-today.getMonth());
+      if(idx >= 0 && idx < 6){ months[idx].total += value(it); months[idx].count += 1; }
+    });
+
+    var W = Math.max(wrap.clientWidth || 640, 320), H = 220;
+    var padL = 54, padR = 16, padT = 22, padB = 30;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var maxVal = Math.max.apply(null, months.map(function(m){return m.total;}).concat([1]));
+    var niceMax = maxVal * 1.15;
+
+    var barGap = 18;
+    var barW = (plotW - barGap*(months.length-1)) / months.length;
+
+    var gridLines = 4;
+    var svgParts = [];
+    for(var g=0; g<=gridLines; g++){
+      var gy = padT + plotH - (plotH*g/gridLines);
+      var gv = niceMax*g/gridLines;
+      svgParts.push('<line x1="'+padL+'" y1="'+gy+'" x2="'+(W-padR)+'" y2="'+gy+'" stroke="var(--border)" stroke-width="1" />');
+      svgParts.push('<text x="'+(padL-8)+'" y="'+(gy+4)+'" text-anchor="end" font-size="10.5" fill="var(--ink-faint)" font-family="IBM Plex Mono, monospace">'+fmtCompact(gv)+'</text>');
+    }
+
+    months.forEach(function(mo, i){
+      var x = padL + i*(barW+barGap);
+      var h = niceMax>0 ? (mo.total/niceMax)*plotH : 0;
+      var y = padT + plotH - h;
+      svgParts.push(
+        '<rect class="chart-bar" data-i="'+i+'" x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+Math.max(h,1).toFixed(1)+'" rx="4" fill="var(--accent)" opacity="0.92" style="cursor:pointer" />'
+      );
+      if(mo.total > 0){
+        svgParts.push('<text x="'+(x+barW/2).toFixed(1)+'" y="'+(y-7).toFixed(1)+'" text-anchor="middle" font-size="11" fill="var(--ink-muted)" font-family="IBM Plex Mono, monospace">'+fmtCompact(mo.total)+'</text>');
+      }
+      svgParts.push('<text x="'+(x+barW/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11.5" fill="var(--ink-muted)" font-family="IBM Plex Sans, sans-serif" font-weight="600">'+mo.label+'</text>');
+    });
+
+    svgParts.push('<line x1="'+padL+'" y1="'+(padT+plotH)+'" x2="'+(W-padR)+'" y2="'+(padT+plotH)+'" stroke="var(--border)" stroke-width="1.5" />');
+
+    wrap.innerHTML =
+      '<svg width="100%" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Value at risk by month, next six months">'+svgParts.join('')+'</svg>' +
+      '<div class="chart-tooltip" id="chartTooltip"></div>';
+
+    var tooltip = document.getElementById('chartTooltip');
+    wrap.querySelectorAll('.chart-bar').forEach(function(bar){
+      bar.addEventListener('mousemove', function(e){
+        var i = parseInt(bar.dataset.i,10);
+        var mo = months[i];
+        var rect = wrap.getBoundingClientRect();
+        tooltip.innerHTML = '<b>'+mo.label+' '+mo.y+'</b><br/>'+fmtBdt(mo.total)+' · '+mo.count+' item'+(mo.count===1?'':'s');
+        tooltip.style.left = (e.clientX - rect.left) + 'px';
+        tooltip.style.top = (e.clientY - rect.top) + 'px';
+        tooltip.classList.add('show');
+      });
+      bar.addEventListener('mouseleave', function(){ tooltip.classList.remove('show'); });
+    });
+  }
+  function fmtCompact(n){
+    if(n >= 1000) return '৳' + (n/1000).toFixed(n>=10000?0:1) + 'k';
+    return '৳' + Math.round(n);
+  }
+
+  /* ---------------- render: table ---------------- */
+  function getFiltered(){
+    var q = uiState.search.trim().toLowerCase();
+    return items.filter(function(m){
+      if(m.returned) return false;
+      if(uiState.bucket !== 'all' && bucketOf(m) !== uiState.bucket) return false;
+      if(q && m.name.toLowerCase().indexOf(q) === -1 && m.company.toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
+  }
+  function sortItems(list){
+    var sorted = list.slice();
+    switch(uiState.sort){
+      case 'expiry-desc':
+        sorted.sort(function(a,b){ return b.expiry_date.localeCompare(a.expiry_date); }); break;
+      case 'value-desc':
+        sorted.sort(function(a,b){ return value(b)-value(a); }); break;
+      case 'name-asc':
+        sorted.sort(function(a,b){ return a.name.localeCompare(b.name); }); break;
+      default:
+        sorted.sort(function(a,b){ return a.expiry_date.localeCompare(b.expiry_date); });
+    }
+    return sorted;
+  }
+
+  function renderTable(){
+    var list = sortItems(getFiltered());
+    var body = document.getElementById('tableBody');
+    var totalActive = items.filter(function(m){return !m.returned;}).length;
+    document.getElementById('tableCountHint').textContent =
+      list.length + ' of ' + totalActive + ' active items shown';
+
+    if(list.length === 0){
+      body.innerHTML = '<tr class="empty-row"><td colspan="10">No medicines match this filter.</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(function(m){
+      var dl = daysLeft(m.expiry_date);
+      var b = bucketOf(m);
+      return '<tr>' +
+        '<td><div class="med-name">'+escapeHtml(m.name)+'</div><div class="med-form">'+escapeHtml(m.form||'')+'</div></td>' +
+        '<td class="company">'+escapeHtml(m.company)+'</td>' +
+        '<td class="mono">'+escapeHtml(m.batch)+'</td>' +
+        '<td class="num-cell num">'+fmtQty(m.quantity)+'</td>' +
+        '<td class="num-cell num mono">'+fmtPrice(m.unit_price_bdt)+'</td>' +
+        '<td class="mono">'+fmtDate(m.expiry_date)+'</td>' +
+        '<td>'+daysLeftLabel(dl)+'</td>' +
+        '<td class="num-cell num mono">'+fmtBdt(value(m))+'</td>' +
+        '<td><span class="pill '+b+'">'+BUCKET_LABEL[b]+'</span></td>' +
+        '<td><button class="btn btn-ghost btn-small" data-return-id="'+m.id+'">Mark returned</button></td>' +
+        '</tr>';
+    }).join('');
+
+    body.querySelectorAll('[data-return-id]').forEach(function(btn){
+      btn.addEventListener('click', function(){ markReturned(btn.dataset.returnId); });
+    });
+  }
+
+  function renderReturned(){
+    var list = items.filter(function(m){ return m.returned; });
+    document.getElementById('returnedSummaryText').textContent =
+      list.length + (list.length===1 ? ' item returned' : ' items returned');
+    var body = document.getElementById('returnedBody');
+    if(list.length === 0){
+      body.innerHTML = '<tr class="empty-row"><td colspan="8">No medicines returned yet.</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(function(m){
+      return '<tr>' +
+        '<td><div class="med-name">'+escapeHtml(m.name)+'</div><div class="med-form">'+escapeHtml(m.form||'')+'</div></td>' +
+        '<td class="company">'+escapeHtml(m.company)+'</td>' +
+        '<td class="mono">'+escapeHtml(m.batch)+'</td>' +
+        '<td class="num-cell num">'+fmtQty(m.quantity)+'</td>' +
+        '<td class="num-cell num mono">'+fmtPrice(m.unit_price_bdt)+'</td>' +
+        '<td class="mono">'+fmtDate(m.expiry_date)+'</td>' +
+        '<td class="mono">'+(m.returnedDate ? fmtDate(m.returnedDate) : '—')+'</td>' +
+        '<td><button class="btn-link" data-undo-id="'+m.id+'">Undo</button></td>' +
+        '</tr>';
+    }).join('');
+    body.querySelectorAll('[data-undo-id]').forEach(function(btn){
+      btn.addEventListener('click', function(){ undoReturn(btn.dataset.undoId); });
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  /* ---------------- actions ---------------- */
+  function markReturned(id){
+    var it = items.find(function(m){ return m.id === id; });
+    if(!it) return;
+    it.returned = true;
+    it.returnedDate = new Date().toISOString().slice(0,10);
+    saveState(items);
+    renderAll();
+  }
+  function undoReturn(id){
+    var it = items.find(function(m){ return m.id === id; });
+    if(!it) return;
+    it.returned = false;
+    delete it.returnedDate;
+    saveState(items);
+    renderAll();
+  }
+
+  function renderAll(){
+    renderStats();
+    renderChart();
+    renderTable();
+    renderReturned();
+  }
+
+  /* ---------------- controls wiring ---------------- */
+  document.getElementById('searchInput').addEventListener('input', function(e){
+    uiState.search = e.target.value;
+    renderTable();
+  });
+  document.getElementById('sortSelect').addEventListener('change', function(e){
+    uiState.sort = e.target.value;
+    renderTable();
+  });
+  function setBucketFilter(b){
+    uiState.bucket = b;
+    document.querySelectorAll('.chip').forEach(function(c){ c.classList.toggle('active', c.dataset.bucket===b); });
+    document.querySelectorAll('.tile').forEach(function(t){ t.classList.toggle('active', t.dataset.bucket===b); });
+    renderTable();
+  }
+  document.getElementById('chipRow').addEventListener('click', function(e){
+    var chip = e.target.closest('.chip');
+    if(chip) setBucketFilter(chip.dataset.bucket);
+  });
+  document.getElementById('tiles').addEventListener('click', function(e){
+    var tile = e.target.closest('.tile');
+    if(tile){
+      var b = tile.dataset.bucket;
+      setBucketFilter(uiState.bucket === b ? 'all' : b);
+    }
+  });
+
+  window.addEventListener('resize', debounce(renderChart, 150));
+  function debounce(fn, ms){
+    var t; return function(){ clearTimeout(t); t = setTimeout(fn, ms); };
+  }
+
+  /* ---------------- quick add modal ---------------- */
+  var scrim = document.getElementById('modalScrim');
+  var form = document.getElementById('addForm');
+  var expiryInput = document.getElementById('f-expiry');
+  var selectedMonths = 18;
+
+  function isoPlusMonths(months){
+    var d = new Date();
+    var target = new Date(d.getFullYear(), d.getMonth()+months, d.getDate());
+    return target.toISOString().slice(0,10);
+  }
+  function openModal(){
+    form.reset();
+    document.getElementById('f-batch').value = 'BX' + String(new Date().getFullYear()).slice(2) + Math.floor(100+Math.random()*899);
+    selectedMonths = 18;
+    document.querySelectorAll('.preset-btn').forEach(function(b){ b.classList.toggle('active', parseInt(b.dataset.months,10)===18); });
+    expiryInput.value = isoPlusMonths(18);
+    scrim.classList.add('open');
+    document.getElementById('f-name').focus();
+  }
+  function closeModal(){ scrim.classList.remove('open'); }
+
+  document.getElementById('openAddBtn').addEventListener('click', openModal);
+  document.getElementById('cancelAddBtn').addEventListener('click', closeModal);
+  scrim.addEventListener('click', function(e){ if(e.target === scrim) closeModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && scrim.classList.contains('open')) closeModal(); });
+
+  document.getElementById('presetRow').addEventListener('click', function(e){
+    var btn = e.target.closest('.preset-btn');
+    if(!btn) return;
+    document.querySelectorAll('.preset-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedMonths = parseInt(btn.dataset.months, 10);
+    expiryInput.value = isoPlusMonths(selectedMonths);
+  });
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var newItem = {
+      id: 'M-NEW-' + Date.now(),
+      name: document.getElementById('f-name').value.trim(),
+      form: '',
+      company: document.getElementById('f-company').value.trim(),
+      batch: document.getElementById('f-batch').value.trim(),
+      quantity: parseInt(document.getElementById('f-qty').value, 10) || 0,
+      unit_price_bdt: parseFloat(document.getElementById('f-price').value) || 0,
+      expiry_date: expiryInput.value,
+      returned: false
+    };
+    items.unshift(newItem);
+    saveState(items);
+    closeModal();
+    setBucketFilter('all');
+    uiState.search = '';
+    document.getElementById('searchInput').value = '';
+    renderAll();
+  });
+
+  /* ---------------- boot ---------------- */
+  renderClock();
+  setInterval(renderClock, 60000);
+  renderAll();
+})();
+</script>
