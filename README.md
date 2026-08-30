@@ -2,7 +2,7 @@
 
 **Team ID:** LSH26-T029
 **Problem ID:** P02 — Pharmacy Expiry Shelf Check
-**Live URL:** ⟨FILL IN — GitHub Pages URL once enabled, see Setup below⟩
+**Live URL:**[ ⟨FILL IN — GitHub Pages URL once enabled, see Setup below⟩](https://github.com/rahulchakraborty6991-cmd/HackCraft/tree/main)
 
 
 ## Proof each requirement is met
