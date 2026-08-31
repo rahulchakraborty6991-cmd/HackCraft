@@ -2,7 +2,7 @@
 
 **Team ID:** LSH26-T029
 **Problem ID:** P02 — Pharmacy Expiry Shelf Check
-**Live URL:**(https://github.com/rahulchakraborty6991-cmd/HackCraft/tree/main)
+**Live URL:** (https://hack-craft-ebon.vercel.app/)
 
 
 ## Proof each requirement is met
