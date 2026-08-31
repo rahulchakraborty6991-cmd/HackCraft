@@ -2,7 +2,7 @@
 
 **Team ID:** LSH26-T029
 **Problem ID:** P02 — Pharmacy Expiry Shelf Check
-**Live URL:** (https://hack-craft-ebon.vercel.app/)
+**Live URL:** https://lsh26-t029-p02.vercel.app/
 
 
 ## Proof each requirement is met
